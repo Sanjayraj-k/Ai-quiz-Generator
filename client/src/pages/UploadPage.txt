@@ -1,0 +1,201 @@
+import React, { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDropzone } from "react-dropzone";
+
+const UploadPage = () => {
+    const [file, setFile] = useState(null);
+    const [difficulty, setDifficulty] = useState("medium");
+    const [numQuestions, setNumQuestions] = useState(3);
+    const [className, setClassName] = useState("");
+    const [year, setYear] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    const navigate = useNavigate();
+
+    const onDrop = useCallback((acceptedFiles) => {
+        if (acceptedFiles.length > 0 && acceptedFiles[0].type === "application/pdf") {
+            setFile(acceptedFiles[0]);
+        } else {
+            alert("Only PDF documents are allowed!");
+        }
+    }, []);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: ".pdf",
+        multiple: false,
+    });
+
+    const submitForm = async () => {
+        if (!file) {
+            alert("Please upload a document first!");
+            return;
+        }
+        if (!className.trim()) {
+            alert("Please enter the class name!");
+            return;
+        }
+        if (!year || isNaN(year) || year.length !== 4) {
+            alert("Please enter a valid 4-digit year!");
+            return;
+        }
+    
+        setLoading(true); // Start loading state
+    
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("difficulty", difficulty);
+        formData.append("num_questions", numQuestions);
+        formData.append("class_name", className);
+        formData.append("year_level", year);
+    
+        try {
+            // Step 1: Submit form data to generate quiz
+            const response = await fetch("http://localhost:5000/api/generate-quiz", {
+                method: "POST",
+                body: formData,
+            });
+    
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.statusText}`);
+            }
+    
+            const data = await response.json();
+    
+            if (!data.quiz || !Array.isArray(data.quiz) || !data.quiz_id) {
+                throw new Error("Invalid quiz data received from the server.");
+            }
+    
+            // Step 2: Call API to create Google Form using quiz_id
+            const googleFormResponse = await fetch(`http://localhost:5000/create-google-form?quiz_id=${data.quiz_id}`);
+    
+            if (!googleFormResponse.ok) {
+                throw new Error(`Google Form creation failed: ${googleFormResponse.statusText}`);
+            }
+    
+            const googleFormData = await googleFormResponse.json();
+    
+            if (!googleFormData.google_form_link) {
+                throw new Error("Google Form link is missing from the response.");
+            }
+    
+            // Step 3: Navigate to Google Form page with quiz and form link
+            navigate("/uploadface", { 
+                state: { 
+                  quiz: data.quiz, 
+                  google_form_link: googleFormData.google_form_link
+                }
+              });
+              localStorage.setItem("drivelink", googleFormData.google_form_link);
+              localStorage.setItem("formId",data.form_id)
+    
+
+
+
+        } catch (error) {
+            console.error("Error:", error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setLoading(false); // Stop loading state
+        }
+    };
+    
+
+    return (
+        <div className="max-w-3xl mx-auto py-12 px-6 bg-white">
+            <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">Upload a Document to Generate a Quiz</h2>
+
+            <div 
+                {...getRootProps()} 
+                className={`border-2 border-dashed rounded-lg p-8 mb-6 text-center cursor-pointer transition-colors
+                    ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}
+            >
+                <input {...getInputProps()} />
+                {isDragActive ? (
+                    <p className="text-blue-600 font-medium">Drop the PDF file here...</p>
+                ) : (
+                    <p className="text-gray-500">Drag & drop a PDF document here, or click to select one</p>
+                )}
+            </div>
+
+            {file && (
+                <p className="text-green-600 font-medium mb-6 flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Selected File: {file.name}
+                </p>
+            )}
+
+            <div className="space-y-6">
+                <div className="flex flex-col">
+                    <label className="text-gray-700 font-medium mb-2">Difficulty Level:</label>
+                    <select 
+                        value={difficulty} 
+                        onChange={(e) => setDifficulty(e.target.value)}
+                        className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+
+                <div className="flex flex-col">
+                    <label className="text-gray-700 font-medium mb-2">Number of Questions:</label>
+                    <input
+                        type="number"
+                        value={numQuestions}
+                        min="1"
+                        onChange={(e) => setNumQuestions(e.target.value)}
+                        placeholder="Enter number of questions"
+                        className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                </div>
+
+                <div className="flex flex-col">
+                    <label className="text-gray-700 font-medium mb-2">Enter Class Name:</label>
+                    <input
+                        type="text"
+                        value={className}
+                        onChange={(e) => setClassName(e.target.value)}
+                        placeholder="Enter class name (e.g., AIML B)"
+                        className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                </div>
+
+                <div className="flex flex-col">
+                    <label className="text-gray-700 font-medium mb-2">Enter Year:</label>
+                    <input
+                        type="number"
+                        value={year}
+                        onChange={(e) => setYear(e.target.value)}
+                        placeholder="Enter year (e.g., 2025)"
+                        className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                </div>
+
+                <button 
+                    onClick={submitForm} 
+                    disabled={loading}
+                    className={`w-full py-3 px-6 rounded-md text-white font-medium transition-colors mt-4
+                        ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+                >
+                    {loading ? (
+                        <span className="flex items-center justify-center">
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Submitting...
+                        </span>
+                    ) : (
+                        "Submit Quiz"
+                    )}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export default UploadPage;

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation } from "react-router-dom";
+import Webcam  from "./webCam.jsx"
+import { useLocation, useNavigate } from "react-router-dom";
 
 
 const AdvancedFormMonitoringSystem = () => {
@@ -16,6 +17,8 @@ const AdvancedFormMonitoringSystem = () => {
   // Full screen state
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isTestMode, setIsTestMode] = useState(false);
+
+  const naviage = useNavigate();
   
   // Counters
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
@@ -37,7 +40,7 @@ const AdvancedFormMonitoringSystem = () => {
   const SOUND_CHECK_INTERVAL = 150; // Check sound level every 200ms
   const ALERT_DURATION = 3000; // Show alert for 3 seconds
 
- const google_form_link = localStorage.getItem("drivelink");  
+ const google_form_link = 'https://docs.google.com/forms/d/1PqOD5nx-9Dde52nknoXZLT1UQmOFyegv9tupPHFxap8/viewform';  
   // Google Form iframe URL - replace YOUR_FORM_ID with your actual Google Form ID
   const googleFormEmbedURL = google_form_link;
   
@@ -250,6 +253,7 @@ const AdvancedFormMonitoringSystem = () => {
     stopAudioMonitoring();
     exitFullScreen();
     setIsTestMode(false);
+    naviage('/result');
   };
   
   // Handle fullscreen change events
@@ -398,42 +402,9 @@ const AdvancedFormMonitoringSystem = () => {
           
           {/* Webcam Display */}
           <div className="relative bg-black rounded-lg overflow-hidden mb-4">
-            {isCameraActive ? (
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                className="w-full h-64 object-cover"
-                onLoadedMetadata={() => {
-                  if (videoRef.current) {
-                    videoRef.current.play().catch(e => {
-                      console.error("Error playing video:", e);
-                      setCameraError("Could not play video stream. Please try again.");
-                    });
-                  }
-                }}
-              />
-            ) : capturedImage ? (
-              <img 
-                src={capturedImage} 
-                alt="Captured" 
-                className="w-full h-64 object-cover"
-              />
-            ) : (
-              <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
-                {cameraError ? (
-                  <p className="text-red-500 text-center p-4">{cameraError}</p>
-                ) : (
-                  <p className="text-gray-500">Camera inactive</p>
-                )}
-              </div>
-            )}
+            <Webcam/>
             
-            {/* Hidden canvas for image capture */}
-            <canvas 
-              ref={canvasRef}
-              className="hidden"
-            />
+            
           </div>
           
           {/* Sound Level Meter */}

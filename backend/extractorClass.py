@@ -8,7 +8,7 @@ import numpy as np
 # from pydub import AudioSegment
 
 # Hide the API key
-client = Groq(api_key=os.getenv("GROQ_API_KEY", "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"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY", "xxx"))
 
 class ContextExtractor:
     """

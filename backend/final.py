@@ -46,8 +46,8 @@ creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FI
 service = build("forms", "v1", credentials=creds)
 
 # API Keys & Config
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
-LANGCHAIN_API_KEY = os.environ.get("LANGCHAIN_API_KEY", "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")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "xxx")
+LANGCHAIN_API_KEY = os.environ.get("LANGCHAIN_API_KEY", "xxxx")
 LANGCHAIN_PROJECT = os.environ.get("LANGCHAIN_PROJECT", "quiz-generator")
 UPLOAD_FOLDER = tempfile.mkdtemp()
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER

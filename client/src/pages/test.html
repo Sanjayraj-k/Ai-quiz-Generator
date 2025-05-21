@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        .loading, .error, .no-results {
+            text-align: center;
+            color: #333;
+        }
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #007bff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error {
+            color: red;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .question {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .correct {
+            background-color: #e6ffe6;
+            border-color: #4caf50;
+        }
+        .incorrect {
+            background-color: #ffebee;
+            border-color: #f44336;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <h1>Quiz Results</h1>
+        <div id="loading" class="loading">Loading...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="no-results" style="display: none;">No quiz results are available at this time.</div>
+        <div id="results" class="results" style="display: none;"></div>
+        <button id="try-again" style="display: none;" onclick="fetchQuizResults()">Try Again</button>
+    </div>
+
+    <script>
+        async function fetchQuizResults() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const noResults = document.getElementById('no-results');
+            const results = document.getElementById('results');
+            const tryAgain = document.getElementById('try-again');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            noResults.style.display = 'none';
+            results.style.display = 'none';
+            tryAgain.style.display = 'none';
+
+            try {
+                // Step 1: Fetch latest form ID
+                console.log('Fetching latest form ID...');
+                const formIdResponse = await fetch('http://localhost:5000/latest-form-id', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                console.log('Form ID response status:', formIdResponse.status);
+                if (!formIdResponse.ok) {
+                    throw new Error(`Failed to fetch form ID: ${await formIdResponse.text()}`);
+                }
+                const formIdData = await formIdResponse.json();
+                const formId = formIdData.form_id;
+                if (!formId) throw new Error('No form ID found');
+
+                // Step 2: Fetch responses
+                console.log('Fetching responses for form ID:', formId);
+                const responsesFetch = await fetch(`http://localhost:5000/fetch-responses/${formId}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                console.log('Responses fetch status:', responsesFetch.status);
+                if (!responsesFetch.ok) {
+                    throw new Error(`Failed to fetch responses: ${await responsesFetch.text()}`);
+                }
+                const responsesData = await responsesFetch.json();
+
+                // Step 3: Evaluate quiz
+                console.log('Evaluating quiz...');
+                const evaluationResponse = await fetch('http://localhost:5000/evaluate-quiz', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                console.log('Evaluation response status:', evaluationResponse.status);
+                if (!evaluationResponse.ok) {
+                    throw new Error(`Failed to evaluate quiz: ${await evaluationResponse.text()}`);
+                }
+                const evaluationData = await evaluationResponse.json();
+                console.log('Evaluation data:', evaluationData);
+
+                if (!evaluationData || !evaluationData.question_results) {
+                    throw new Error('Invalid evaluation data');
+                }
+
+                // Display results
+                loading.style.display = 'none';
+                results.style.display = 'block';
+                results.innerHTML = `
+                    <p><strong>Score:</strong> ${evaluationData.score} / ${evaluationData.total_questions}</p>
+                    <p><strong>Percentage:</strong> ${evaluationData.percentage}%</p>
+                    <h3>Questions & Answers:</h3>
+                    ${evaluationData.question_results.map((result, index) => `
+                        <div class="question ${result.is_correct ? 'correct' : 'incorrect'}">
+                            <p><strong>Q${index + 1}:</strong> ${result.question}</p>
+                            <p><strong>Your Answer:</strong> ${result.user_answer || 'Not answered'}</p>
+                            ${!result.is_correct ? `<p><strong>Correct Answer:</strong> ${result.correct_answer}</p>` : ''}
+                        </div>
+                    `).join('')}
+                    <p>${evaluationData.percentage >= 70 ? 'Great job! You passed the quiz.' : 'Keep studying! You\'ll do better next time.'}</p>
+                `;
+
+            } catch (err) {
+                console.error('Error in fetchQuizResults:', err);
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                error.textContent = err.message.includes('SSL') ? 'Network error: Ensure using http://localhost:5000 and no proxy is interfering.' : err.message;
+                tryAgain.style.display = 'block';
+            }
+        }
+
+        // Load results on page load
+        window.onload = fetchQuizResults;
+    </script>
+</body>
+</html>

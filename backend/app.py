@@ -38,7 +38,7 @@ CORS(app, resources={
 })
 
 # MongoDB Configuration
-MONGO_URI = "mongodb://localhost:27017/"
+MONGO_URI = os.environ.get("MONGO_URI")
 try:
     client = MongoClient(MONGO_URI)
     db = client["Question"]

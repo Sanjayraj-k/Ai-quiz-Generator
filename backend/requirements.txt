@@ -21,3 +21,4 @@ numpy
 pandas
 requests
 gunicorn
+youtube-transcript-api

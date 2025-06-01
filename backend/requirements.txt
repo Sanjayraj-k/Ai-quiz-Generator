@@ -20,3 +20,4 @@ typing-extensions
 numpy
 pandas
 requests
+gunicorn
